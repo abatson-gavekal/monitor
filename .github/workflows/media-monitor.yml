@@ -1,0 +1,39 @@
+name: Daily media monitor
+
+on:
+  schedule:
+    # 08:00 China time. GitHub Actions cron is UTC.
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run monitor
+        run: python scripts/media_monitor.py --db data/media_monitor.sqlite3
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          SMTP_TLS: ${{ secrets.SMTP_TLS }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+
+      - name: Commit database updates
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Update media monitor database
+          file_pattern: data/media_monitor.sqlite3
