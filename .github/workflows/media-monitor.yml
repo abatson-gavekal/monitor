@@ -26,6 +26,66 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Normalize email settings
+        env:
+          RAW_SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          RAW_SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          RAW_SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          RAW_SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          RAW_SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          RAW_SMTP_TLS: ${{ secrets.SMTP_TLS }}
+          RAW_ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          RAW_GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
+          RAW_GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          RAW_GMAIL_ACCOUNT: ${{ secrets.GMAIL_ACCOUNT }}
+          RAW_GMAIL_EMAIL: ${{ secrets.GMAIL_EMAIL }}
+          RAW_GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RAW_GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+          RAW_GMAIL_FROM: ${{ secrets.GMAIL_FROM }}
+          RAW_GMAIL_TO: ${{ secrets.GMAIL_TO }}
+          RAW_EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          RAW_EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          RAW_EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          RAW_EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: |
+          first_nonempty() {
+            for value in "$@"; do
+              if [ -n "$value" ]; then
+                printf '%s' "$value"
+                return 0
+              fi
+            done
+            return 0
+          }
+
+          smtp_host="$(first_nonempty "$RAW_SMTP_HOST" "smtp.gmail.com")"
+          smtp_port="$(first_nonempty "$RAW_SMTP_PORT" "587")"
+          smtp_username="$(first_nonempty "$RAW_SMTP_USERNAME" "$RAW_GMAIL_USERNAME" "$RAW_GMAIL_ADDRESS" "$RAW_GMAIL_ACCOUNT" "$RAW_GMAIL_EMAIL" "$RAW_EMAIL_USERNAME")"
+          smtp_password="$(first_nonempty "$RAW_SMTP_PASSWORD" "$RAW_GMAIL_APP_PASSWORD" "$RAW_GMAIL_PASSWORD" "$RAW_EMAIL_PASSWORD")"
+          smtp_from="$(first_nonempty "$RAW_SMTP_FROM" "$RAW_GMAIL_FROM" "$smtp_username" "$RAW_EMAIL_FROM")"
+          smtp_tls="$(first_nonempty "$RAW_SMTP_TLS" "true")"
+          alert_email_to="$(first_nonempty "$RAW_ALERT_EMAIL_TO" "$RAW_GMAIL_TO" "$RAW_EMAIL_TO")"
+
+          missing=()
+          [ -z "$smtp_username" ] && missing+=("GMAIL_USERNAME, GMAIL_ADDRESS, GMAIL_ACCOUNT, GMAIL_EMAIL, EMAIL_USERNAME, or SMTP_USERNAME")
+          [ -z "$smtp_password" ] && missing+=("GMAIL_APP_PASSWORD, GMAIL_PASSWORD, EMAIL_PASSWORD, or SMTP_PASSWORD")
+          [ -z "$alert_email_to" ] && missing+=("GMAIL_TO, EMAIL_TO, or ALERT_EMAIL_TO")
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '::error::Missing email secret(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+          {
+            echo "SMTP_HOST=$smtp_host"
+            echo "SMTP_PORT=$smtp_port"
+            echo "SMTP_USERNAME=$smtp_username"
+            echo "SMTP_PASSWORD=$smtp_password"
+            echo "SMTP_FROM=$smtp_from"
+            echo "SMTP_TLS=$smtp_tls"
+            echo "ALERT_EMAIL_TO=$alert_email_to"
+          } >> "$GITHUB_ENV"
+
       - name: Run monitor
         run: |
           args=(--db data/media_monitor.sqlite3)
@@ -33,18 +93,6 @@ jobs:
             args+=(--date "${{ inputs.date }}")
           fi
           python scripts/media_monitor.py "${args[@]}"
-        env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
-          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME || secrets.GMAIL_USERNAME || secrets.GMAIL_ADDRESS }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD || secrets.GMAIL_APP_PASSWORD || secrets.GMAIL_PASSWORD }}
-          SMTP_FROM: ${{ secrets.SMTP_FROM || secrets.GMAIL_FROM || secrets.GMAIL_USERNAME || secrets.GMAIL_ADDRESS }}
-          SMTP_TLS: ${{ secrets.SMTP_TLS || 'true' }}
-          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO || secrets.GMAIL_TO }}
-          GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          GMAIL_FROM: ${{ secrets.GMAIL_FROM }}
-          GMAIL_TO: ${{ secrets.GMAIL_TO }}
 
       - name: Commit database updates
         uses: stefanzweifel/git-auto-commit-action@v5
