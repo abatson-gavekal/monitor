@@ -34,13 +34,17 @@ jobs:
           fi
           python scripts/media_monitor.py "${args[@]}"
         env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          SMTP_FROM: ${{ secrets.SMTP_FROM }}
-          SMTP_TLS: ${{ secrets.SMTP_TLS }}
-          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME || secrets.GMAIL_USERNAME || secrets.GMAIL_ADDRESS }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD || secrets.GMAIL_APP_PASSWORD || secrets.GMAIL_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM || secrets.GMAIL_FROM || secrets.GMAIL_USERNAME || secrets.GMAIL_ADDRESS }}
+          SMTP_TLS: ${{ secrets.SMTP_TLS || 'true' }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO || secrets.GMAIL_TO }}
+          GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_FROM: ${{ secrets.GMAIL_FROM }}
+          GMAIL_TO: ${{ secrets.GMAIL_TO }}
 
       - name: Commit database updates
         uses: stefanzweifel/git-auto-commit-action@v5
