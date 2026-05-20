@@ -21,7 +21,15 @@ The default date is today's date in `Asia/Shanghai`.
 
 ## Email configuration
 
-Set these GitHub Actions repository secrets:
+For Gmail, create an app password and set these GitHub Actions repository secrets:
+
+- `GMAIL_USERNAME`
+- `GMAIL_APP_PASSWORD`
+- `GMAIL_TO`
+
+`GMAIL_TO` can contain one or more comma-separated addresses. `GMAIL_FROM` is optional; if omitted, the workflow uses `GMAIL_USERNAME`.
+
+Generic SMTP is also supported with:
 
 - `SMTP_HOST`
 - `SMTP_PORT`
@@ -30,8 +38,6 @@ Set these GitHub Actions repository secrets:
 - `SMTP_FROM`
 - `SMTP_TLS`
 - `ALERT_EMAIL_TO`
-
-`ALERT_EMAIL_TO` can contain one or more comma-separated addresses.
 
 ## GitHub Actions
 
