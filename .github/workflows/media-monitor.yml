@@ -5,6 +5,11 @@ on:
     # 08:00 China time. GitHub Actions cron is UTC.
     - cron: "0 0 * * *"
   workflow_dispatch:
+    inputs:
+      date:
+        description: "Publication date to scan, in YYYY-MM-DD format"
+        required: false
+        type: string
 
 jobs:
   monitor:
@@ -22,7 +27,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run monitor
-        run: python scripts/media_monitor.py --db data/media_monitor.sqlite3
+        run: |
+          args=(--db data/media_monitor.sqlite3)
+          if [ -n "${{ inputs.date }}" ]; then
+            args+=(--date "${{ inputs.date }}")
+          fi
+          python scripts/media_monitor.py "${args[@]}"
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
