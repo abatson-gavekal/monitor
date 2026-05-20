@@ -22,9 +22,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -131,7 +131,7 @@ jobs:
           python scripts/media_monitor.py "${args[@]}"
 
       - name: Commit database updates
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Update media monitor database
           file_pattern: data/media_monitor.sqlite3
