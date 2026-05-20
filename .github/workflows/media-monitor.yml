@@ -10,6 +10,11 @@ on:
         description: "Publication date to scan, in YYYY-MM-DD format"
         required: false
         type: string
+      send_email:
+        description: "Send email alerts for new matches"
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   monitor:
@@ -66,14 +71,42 @@ jobs:
           smtp_tls="$(first_nonempty "$RAW_SMTP_TLS" "true")"
           alert_email_to="$(first_nonempty "$RAW_ALERT_EMAIL_TO" "$RAW_GMAIL_TO" "$RAW_EMAIL_TO")"
 
+          report_secret() {
+            label="$1"
+            value="$2"
+            if [ -n "$value" ]; then
+              echo "$label: configured"
+            else
+              echo "$label: missing"
+            fi
+          }
+
+          echo "Email secret presence check:"
+          report_secret "GMAIL_USERNAME" "$RAW_GMAIL_USERNAME"
+          report_secret "GMAIL_ADDRESS" "$RAW_GMAIL_ADDRESS"
+          report_secret "GMAIL_ACCOUNT" "$RAW_GMAIL_ACCOUNT"
+          report_secret "GMAIL_EMAIL" "$RAW_GMAIL_EMAIL"
+          report_secret "GMAIL_APP_PASSWORD" "$RAW_GMAIL_APP_PASSWORD"
+          report_secret "GMAIL_PASSWORD" "$RAW_GMAIL_PASSWORD"
+          report_secret "GMAIL_TO" "$RAW_GMAIL_TO"
+          report_secret "EMAIL_USERNAME" "$RAW_EMAIL_USERNAME"
+          report_secret "EMAIL_PASSWORD" "$RAW_EMAIL_PASSWORD"
+          report_secret "EMAIL_TO" "$RAW_EMAIL_TO"
+          report_secret "SMTP_USERNAME" "$RAW_SMTP_USERNAME"
+          report_secret "SMTP_PASSWORD" "$RAW_SMTP_PASSWORD"
+          report_secret "ALERT_EMAIL_TO" "$RAW_ALERT_EMAIL_TO"
+
           missing=()
-          [ -z "$smtp_username" ] && missing+=("GMAIL_USERNAME, GMAIL_ADDRESS, GMAIL_ACCOUNT, GMAIL_EMAIL, EMAIL_USERNAME, or SMTP_USERNAME")
-          [ -z "$smtp_password" ] && missing+=("GMAIL_APP_PASSWORD, GMAIL_PASSWORD, EMAIL_PASSWORD, or SMTP_PASSWORD")
-          [ -z "$alert_email_to" ] && missing+=("GMAIL_TO, EMAIL_TO, or ALERT_EMAIL_TO")
+          [ -z "$smtp_username" ] && missing+=("sender account: set GMAIL_USERNAME to your full Gmail address")
+          [ -z "$smtp_password" ] && missing+=("app password: set GMAIL_APP_PASSWORD to a Gmail app password")
+          [ -z "$alert_email_to" ] && missing+=("recipient: set GMAIL_TO to the destination email address")
 
           if [ "${#missing[@]}" -gt 0 ]; then
-            printf '::error::Missing email secret(s): %s\n' "${missing[*]}"
-            exit 1
+            if [ "${{ inputs.send_email }}" = "true" ]; then
+              printf '::error::Missing email secret(s): %s\n' "${missing[*]}"
+              exit 1
+            fi
+            printf '::warning::Email disabled because secret(s) are missing: %s\n' "${missing[*]}"
           fi
 
           {
@@ -91,6 +124,9 @@ jobs:
           args=(--db data/media_monitor.sqlite3)
           if [ -n "${{ inputs.date }}" ]; then
             args+=(--date "${{ inputs.date }}")
+          fi
+          if [ "${{ inputs.send_email }}" != "true" ]; then
+            args+=(--no-email)
           fi
           python scripts/media_monitor.py "${args[@]}"
 
